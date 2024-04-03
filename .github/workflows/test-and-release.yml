@@ -35,7 +35,7 @@ jobs:
       - name: Run Tests
         run: clojure -X:test
       - name: Deploy Release
-        run: clojure -T:build publish-clojar :version \"${{steps.vars.output.release_version}}\"
+        run: clojure -T:build publish-clojar :version \"${{steps.vars.outputs.release_version}}\"
         env:
           CLOJARS_PASSWORD: ${{secrets.CLOJARS_PASSWORD}}
           CLOJARS_USERNAME: ${{secrets.CLOJARS_USERNAME}}
