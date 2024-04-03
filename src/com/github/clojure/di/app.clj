@@ -13,13 +13,16 @@
          (filter (partial util/has-meta ::di/di))
          (map var-get))))
 
-(defn bootstrap [ns-prefix init-ctx opts]
-  (let [namespaces (dns/scan-ns ns-prefix)]
-    (doseq [n namespaces]
-      (println "loading " n " ......")
-      (require (symbol n)))
-    (let [components (mapcat scan-components namespaces)]
-      (execute components init-ctx opts))))
+(defn bootstrap
+  ([ns-prefix] (bootstrap ns-prefix {} {}))
+  ([ns-prefix init-ctx] (bootstrap ns-prefix init-ctx {}))
+  ([ns-prefix init-ctx opts]
+   (let [namespaces (dns/scan-ns ns-prefix)]
+     (doseq [n namespaces]
+       (println "loading " n " ......")
+       (require (symbol n)))
+     (let [components (mapcat scan-components namespaces)]
+       (execute components init-ctx opts)))))
 
 (comment
   (macroexpand

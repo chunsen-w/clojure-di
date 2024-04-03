@@ -7,5 +7,6 @@
          :main-opts ["-m" "cognitect.test-runner"]
          :exec-fn cognitect.test-runner.api/test}
   ;; Run with clj -T:build function-in-build
-  :build {:deps {io.github.clojure/tools.build {:git/tag "v0.10.0" :git/sha "3a2c484"}}
+  :build {:deps {slipset/deps-deploy {:mvn/version "RELEASE"}
+                 io.github.clojure/tools.build {:git/tag "v0.10.0" :git/sha "3a2c484"}}
           :ns-default build}}}
