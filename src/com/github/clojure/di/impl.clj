@@ -2,8 +2,7 @@
 
 (ns com.github.clojure.di.impl
   (:require [com.github.clojure.di.util :as util]
-            [com.github.clojure.di.core :as-alias di]
-            [clojure.string :as str]))
+            [com.github.clojure.di.core :as-alias di]))
 
 
 (defn- build-opts [symbol-map opt-map]
@@ -84,26 +83,36 @@
     (map first sorted)))
 
 
-(defn merge-ctx [ctx new merge-fns]
+(defn merge-ctx [ctx new provider-name]
   (reduce (fn [acc [k v]]
-            (let [current-v (get ctx k)]
-              (if-let [merge-fn (get merge-fns k)]
-                (assoc acc k (merge-fn k current-v v))
-                (assoc acc k (cond
-                               (nil? current-v) v
-                               (and
-                                (vector? current-v)
-                                (util/has-meta ::di/merged-vector current-v)) (util/keep-meta current-v conj v)
-                               :else (util/keep-meta ^::di/merged-vector [] conj current-v v))))))
+            (update acc k #(conj % [provider-name v])))
           ctx
           new))
 
-(defn check-deps [{::di/keys [name optional in]
-                   :or {optional #{}}} 
-                  context]
-  (when-let [not-exist (seq (filter #(and
-                                      (not (optional %))
-                                      (not (contains? context %)))
-                                    in))]
-    (throw  (ex-info (str "[" name "] missing required param [" (str/join not-exist) "]") {:comp name
-                                      :missing (vec not-exist)}))))
+(defn- default-merge-fn [key values]
+  (when (next values)
+    (println "Multiple values found for key [" key "], only the last value will be used"))
+  (-> values first second))
+
+(defn select-input
+  "select the input value of a di component from the ctx"
+  [{::di/keys [name optional in opts]
+    :or {optional #{}}}
+   ctx
+   default-opts]
+  (letfn [(select [key]
+                  (if-let [values (get ctx key)]
+                    (let [mf (or
+                              (get (:merge-fn opts) key)
+                              (get (:merge-fn default-opts) key)
+                              default-merge-fn)]
+                      (mf key values))
+                    (when-not (optional key)
+                      (throw  (Exception. (str "[" name "] missing required input [" key "]") ))))
+                  )]
+    (reduce (fn [acc input-key] 
+              (if-let [input (select input-key)]
+                (assoc acc input-key input)
+                acc))
+            {}
+            in)))

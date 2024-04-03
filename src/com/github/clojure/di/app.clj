@@ -10,7 +10,8 @@
   (when-let [the-ns (find-ns (symbol the-ns))]
     (->> (ns-interns the-ns)
          vals
-         (filter (partial util/has-meta ::di/di)))))
+         (filter (partial util/has-meta ::di/di))
+         (map var-get))))
 
 (defn bootstrap [ns-prefix init-ctx opts]
   (let [namespaces (dns/scan-ns ns-prefix)]
