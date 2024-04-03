@@ -20,17 +20,17 @@
   (b/delete {:path build-folder})
   (println (format "Build folder \"%s\" removed" build-folder)))
 
-(def pom-data
-  [[:url "https://github.com/wangchunsen/clojure-di"]
+(defn pom-data [opt]
+  [[:url "https://github.com/chunsen-w/clojure-di"]
    [:licenses
     [:license
      [:name "Apache-2.0"]
      [:url "https://www.apache.org/licenses/LICENSE-2.0.txt"]]]
    [:scm
-    [:url "https://github.com/wangchunsen/clojure-di"]
-    [:connection "scm:git:https://github.com:wangchunsen/clojure-di.git"]
-    [:developerConnection "scm:git:ssh:git@github.com:wangchunsen/clojure-di.git"]
-    [:tag (str "v" version)]]])
+    [:url "https://github.com/chunsen-w/clojure-di"]
+    [:connection "scm:git:https://github.com:chunsen-w/clojure-di.git"]
+    [:developerConnection "scm:git:ssh:git@github.com:chunsen-w/clojure-di.git"]
+    [:tag (str "v" (version opt))]]])
 
 (defn jar [opt]
   (println opt)
@@ -49,7 +49,7 @@
                 :version   (or (:version opt) version)
                 :basis     basis
                 :src-dirs  ["src"]
-                :pom-data  pom-data})
+                :pom-data  (pom-data opt)})
 
   (b/jar {:class-dir jar-content                  ; create jar
           :jar-file  (jar-file-name opt)})
