@@ -1,3 +1,5 @@
+[![Clojars Project](https://img.shields.io/clojars/v/com.github.chunsen-w/clj-di.svg)](https://clojars.org/com.github.chunsen-w/clj-di)
+
 ## The basic idea
 ```clojure
 (defn a-fun [{:keys [db-port db-url]}]
