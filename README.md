@@ -10,6 +10,8 @@ For this function, it is known that given `db-port` and `db-url` it will given b
 ## How to use
 ### Baic usage
 ```clojure
+(require '[com.github.clojure.di.core :refer [defdi execute]])
+
 (defdi http-server [{:keys [http-port route]
                      db-conn :db-connection}]
   ;start http server
