@@ -22,6 +22,11 @@
     (with-meta (apply fun obj args) m)
     (apply fun obj args)))
 
+(defn to-map-by
+  "return a map of {key (fun obj)}"
+  [fun col]
+  (into {} (map (fn [obj] [(fun obj) obj])) col))
+
 
 (comment
   ;; 
