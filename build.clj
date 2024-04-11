@@ -11,7 +11,8 @@
 
 ; library version
 (defn version [opt]
-  (or (:version opt) "0.0.1-SNAPSHOT"))
+  (or (:version opt) "0.0.3-SNAPSHOT"))
+
 ; path for result jar file
 (defn jar-file-name [opt]
   (format "%s/%s-%s.jar" build-folder (name lib-name) (version opt)))
@@ -39,14 +40,14 @@
   (b/copy-dir {:src-dirs   ["src" "resources"]    ; prepare jar content
                :target-dir jar-content})
 
-  (b/compile-clj {:basis     basis               ; compile clojure code
-                  :src-dirs  ["src"]
-                  :class-dir jar-content
-                  :filter-nses ['com.github.clojure.di]})
+  ;; (b/compile-clj {:basis     basis               ; compile clojure code
+  ;;                 :src-dirs  ["src"]
+  ;;                 :class-dir jar-content
+  ;;                 :filter-nses ['com.github.clojure.di]})
 
   (b/write-pom {:class-dir jar-content            ; create pom.xml
                 :lib       lib-name
-                :version   (or (:version opt) version)
+                :version   (version opt)
                 :basis     basis
                 :src-dirs  ["src"]
                 :pom-data  (pom-data opt)})
@@ -61,8 +62,7 @@
               :lib       lib-name
               :jar-file  (jar-file-name opt)
               :basis     basis
-              :version   version}))
-
+              :version   (version opt)}))
 
 (defn publish-clojar [opt]
   (jar opt)

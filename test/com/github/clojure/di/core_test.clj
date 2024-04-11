@@ -34,7 +34,7 @@
                   :r2 vec2})
           p1 (di [_] {:vec1 "p1-v1" :vec2 "p1-v2"})
           p2 (di [_] {:vec2 "p2-v2"})
-          rs (execute [c1 p1 p2])]
+          rs (execute [p1 c1 p2])]
       (are [x y] (= x y)
         (ctx-values rs :r1) [["p1-v1"]]
         (ctx-values rs :r2) [["p1-v2" "p2-v2"]]))))

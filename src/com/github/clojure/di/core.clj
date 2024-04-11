@@ -1,5 +1,7 @@
 (ns com.github.clojure.di.core
-  (:require [com.github.clojure.di.impl :as impl]))
+  (:require [com.github.clojure.di.impl :as impl]
+            [com.github.clojure.di.util :as util]
+            [clojure.tools.logging :as log]))
 
 
 (def ^:private opt-map
@@ -47,7 +49,11 @@
 
 
 (defn execute
-  "execute the components in their dependency order"
+  "execute the components in their dependency order
+   supported options:
+   :merge-fn - a map of {key merge-fn}, 
+     the merge-fn is a function that takes a key and a list of values, and return the merged value
+     where the value is a pair of [key-of-the-provider value]"
   ([components] (execute components {} {}))
   ([components init-ctx] (execute components init-ctx {}))
   ([components init-ctx opts]
@@ -56,11 +62,10 @@
                               (throw (ex-info (str "illegal component " %) {:comp %})))
                             (assoc metadata ::fn %))
                          components)
-         name-map (into
-                   {}
-                   (map (fn [c] [(::name c) c]) components))
-
-         init-order (impl/init-order components)]
+         name-map (util/to-map-by ::name components)
+         deps (impl/calc-deps components)
+         init-order (impl/init-order deps)
+         _ (log/debug "init order:" init-order)]
      (reduce (fn [ctx name]
                (let [comp (get name-map name)
                      input  (impl/select-input comp ctx opts)
@@ -68,3 +73,8 @@
                  (impl/merge-ctx ctx res name)))
              (impl/merge-ctx {} init-ctx :init)
              init-order))))
+
+(defn ctx-values
+  "return the values of the key in the context"
+  [ctx key]
+  (map second (get ctx key)))

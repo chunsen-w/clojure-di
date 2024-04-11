@@ -52,7 +52,7 @@
       :else (throw (new IllegalArgumentException
                         "A component must return a map")))))
 
-(defn- calc-deps
+(defn calc-deps
   "calculate the dependencies of each component
   return list of [comp-name #{depdencies names}] for each component"
   [components]
@@ -70,19 +70,37 @@
                        (set))])
          components)))
 
-(defn init-order
-  "return the list of components, sorted by the init order"
-  [components]
-  (let [deps (calc-deps components)
-        sorted (sort (fn [[na dpa] [nb dpb]]
-                       (cond
-                         (dpb na) -1
-                         (dpa nb) 1
-                         :else (compare na nb)))
-                     deps)]
-    (map first sorted)))
-
-
+(defn init-order 
+  "return a vector of the components name, of their init order"
+  [comp-deps]
+  (let [item-map (into {} comp-deps)
+        init-keys (sort (keys item-map))] 
+    (loop [item (first init-keys)
+           rest-items (rest init-keys)
+           visited #{}
+           result []]
+      (cond
+        (not item) result
+        (visited item) (recur 
+                        (first rest-items) 
+                        (rest rest-items) 
+                        visited 
+                        result)
+        :else (if-let [deps (->> item
+                                  (get item-map)
+                                  (filter #(not (visited %)))
+                                  sort
+                                  seq)]
+                 (recur (first deps)
+                        (concat (rest deps) (list item) rest-items) 
+                        visited
+                        result)
+                 (recur (first rest-items)
+                        (rest rest-items)
+                        (conj visited item)
+                        (conj result item)))
+        ))))
+ 
 (defn merge-ctx [ctx new provider-name]
   (reduce (fn [acc [k v]]
             (update acc k #(conj % [provider-name v])))
