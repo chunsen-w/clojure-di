@@ -1,2 +1,3 @@
 {:lint-as {com.github.clojure.di.core/defdi clojure.core/defn
-           com.github.clojure.di.core/di clojure.core/fn}}
+           com.github.clojure.di.core/di clojure.core/fn
+           com.github.clojure.di.core/defcomp clojure.core/fn}}
