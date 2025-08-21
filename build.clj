@@ -11,7 +11,7 @@
 
 ; library version
 (defn version [opt]
-  (or (:version opt) "0.0.3"))
+  (or (:version opt) "0.0.4"))
 
 ; path for result jar file
 (defn jar-file-name [opt]
