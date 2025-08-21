@@ -1,7 +1,7 @@
 (ns com.github.clojure.di.app-test
   (:use [clojure.test])
   (:require [com.github.clojure.di.app :refer [scan-components]]
-            [com.github.clojure.di.core :refer [defdi] :as di]))
+            [com.github.clojure.di.core :refer [defdi]]))
 
 (defdi comp1 [_] {})
 (defdi comp2 [_] {:p2 "p2"})
@@ -12,4 +12,4 @@
       (are [x y] (= x y)
         (count components) 2
         (some #(not (fn? %)) components) nil
-        (set (map #(-> % meta ::di/name) components)) #{::comp1 ::comp2}))))
+        (set (map #(-> % meta :clj-di/name) components)) #{::comp1 ::comp2}))))

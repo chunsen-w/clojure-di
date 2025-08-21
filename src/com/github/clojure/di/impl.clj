@@ -1,27 +1,9 @@
-;; private functions for internal usage
-
 (ns com.github.clojure.di.impl
-  (:require [com.github.clojure.di.util :as util]
-            [com.github.clojure.di.core :as-alias di]))
+  (:require [com.github.clojure.di.util :as util]))
 
-
-(defn- build-opts [symbol-map opt-map]
-  (letfn [;;transfrom {opt-key value} to {opt-key {symbol-name value}}
-          (tranform [k opts]
-            (update-vals opts (fn [a] {k a})))]
-    (reduce (fn [acc sym]
-              (if-let [metas (util/true-metas sym)]
-                (->> metas
-                     (map opt-map)
-                     (reduce merge {})
-                     (tranform (symbol-map sym))
-                     (merge-with merge acc))
-                acc))
-            {}
-            (keys symbol-map))))
-
-(defn parse-args [destruce-map opt-map]
-  (when (map? destruce-map)
+(defn parse-args [destruce-map]
+  (cond
+    (map? destruce-map)
     (let [sym-map (reduce (fn [acc [k v]]
                             (cond
                               (= :keys k) (into acc (map (fn [sym] [sym (-> sym name keyword)]) v))
@@ -29,108 +11,63 @@
                                    (= (name k) "keys")) (let [ns (namespace k)]
                                                           (into acc (map (fn [sym] [sym (->> sym name (keyword ns))]) v)))
                               (symbol? k) (assoc acc k v)
-                               ;; (map? k) (parse-deps k)
+                              ;; (map? k) (parse-deps k)
                               :else acc))
                           {}
                           destruce-map)
-          res {::di/in (-> sym-map vals set)}
-          optional-sym (:or destruce-map)
-          res (if (seq optional-sym)
-                (assoc res ::di/optional (set (map sym-map (keys optional-sym))))
-                res)
-          res  (let [opts (build-opts sym-map opt-map)]
-                 (if (seq opts)
-                   (assoc res ::di/opts opts)
-                   res))]
-      res)))
+          optional-keys (if-let [optionals (:or destruce-map)]
+                          (set (map sym-map (keys optionals)))
+                          #{})]
+      {:clj-di/in
+       (->> sym-map
+            (map (fn [[sym kw]]
+                   (-> [kw
+                        (-> #{}
+                            (into  (when (optional-keys kw) [:optional]))
+                            (into (->> sym util/true-metas (filter (fn [meta-key] (= (namespace meta-key) "clj-di"))))))])))
+            set)})
+    (or (nil? destruce-map)
+        (= (name destruce-map) "_")) {:clj-di/in #{}}
+    :else (throw (IllegalArgumentException. "the argument of a di compoent must be a map or _"))))
 
 (defn parse-resp [body]
   (let [resp (last body)]
     (cond
-      (map? resp) {::di/out (set (keys resp))}
+      (map? resp) {:clj-di/out (set (keys resp))}
       (seq? resp) (parse-resp resp)
       :else (throw (new IllegalArgumentException
-                        "A component must return a map")))))
+                        "Di must return a map")))))
 
-(defn calc-deps
-  "calculate the dependencies of each component
-  return list of [comp-name #{depdencies names}] for each component"
+(defn calc-provider
+  "translate the map for {name -> out [p1 p2]} to {p1 -> (name1 name2), p2-> (name)}"
   [components]
-  (let [;; translate the map for {name -> out [p1 p2]} to {p1 -> (name1 name2), p2-> (name)}
-        provide-map  (reduce (fn [acc [k n]] (update acc k conj n))
-                             {}
-                             (mapcat (fn [{::di/keys [out name]}]
-                                       (map #(list % name) out))
-                                     components))]
-    (map (fn [{::di/keys [name in]}]
-           [name  (->> in
-                       (map provide-map)
-                       (filter #(not (nil? %)))
-                       (mapcat identity)
-                       (set))])
-         components)))
+  (reduce (fn [acc [k n]] (update acc k conj n))
+          {}
+          (mapcat (fn [{:clj-di/keys [out name]}]
+                    (map #(list % name) out))
+                  components)))
 
-(defn init-order 
-  "return a vector of the components name, of their init order"
-  [comp-deps]
-  (let [item-map (into {} comp-deps)
-        init-keys (sort (keys item-map))] 
-    (loop [item (first init-keys)
-           rest-items (rest init-keys)
-           visited #{}
-           result []]
-      (cond
-        (not item) result
-        (visited item) (recur 
-                        (first rest-items) 
-                        (rest rest-items) 
-                        visited 
-                        result)
-        :else (if-let [deps (->> item
-                                  (get item-map)
-                                  (filter #(not (visited %)))
-                                  sort
-                                  seq)]
-                 (recur (first deps)
-                        (concat (rest deps) (list item) rest-items) 
-                        visited
-                        result)
-                 (recur (first rest-items)
-                        (rest rest-items)
-                        (conj visited item)
-                        (conj result item)))
-        ))))
- 
 (defn merge-ctx [ctx new provider-name]
   (reduce (fn [acc [k v]]
             (update acc k #(conj % [provider-name v])))
           ctx
           new))
 
-(defn- default-merge-fn [key values]
-  (when (next values)
-    (println "Multiple values found for key [" key "], only the last value will be used"))
-  (-> values first second))
-
 (defn select-input
   "select the input value of a di component from the ctx"
-  [{::di/keys [name optional in opts]
-    :or {optional #{}}}
-   ctx
-   default-opts]
-  (letfn [(select [key]
-                  (if-let [values (get ctx key)]
-                    (let [mf (or
-                              (get (:merge-fn opts) key)
-                              (get (:merge-fn default-opts) key)
-                              default-merge-fn)]
-                      (mf key values))
-                    (when-not (optional key)
-                      (throw  (Exception. (str "[" name "] missing required input [" key "]") ))))
-                  )]
-    (reduce (fn [acc input-key] 
-              (if-let [input (select input-key)]
-                (assoc acc input-key input)
+  [{:clj-di/keys [name in]}
+   ctx]
+  (letfn [(select [key opts]
+            (if-let [values (get ctx key)]
+              (cond
+                (opts :clj-di/list) (into '() (map second values))
+                (= (count values) 1) (second (first values))
+                :else (throw (Exception. (str "Multiple values found for key [" key "]"))))
+              (when-not (opts :optional)
+                (throw  (Exception. (str "[" name "] missing required input [" key "]"))))))]
+    (reduce (fn [acc [key opts]]
+              (if-let [input (select key opts)]
+                (assoc acc key input)
                 acc))
             {}
             in)))

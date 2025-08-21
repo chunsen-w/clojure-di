@@ -43,19 +43,19 @@
 
 (defn scan-ns
   "Rerurn a string set, for all the namespaces which have the prefix"
-  [prefix]
-  (let [name-prefix (->> (str/split prefix #"\.")
-                         (map (fn [seg]
-                                (str/replace seg #"-" "_")))
-                         (str/join "/"))
-        name-fitler (fn [name]
-                      (and
-                       (str/starts-with? name name-prefix)
-                       (some #(str/ends-with? name %) ns-fine-name-sufixes)))
+  [ns-prefix-or-patterns]
+  (let [ns-filter (fn [the-ns] (some #(if (string? %)
+                                        (str/starts-with? the-ns %)
+                                        (re-matches % the-ns))
+                                     ns-prefix-or-patterns))
         file-names (concat
                     (mapcat cp/filenames-in-jar (cp/classpath-jarfiles))
                     (scan-dirs (cp/classpath-directories)))
-        namespaces (map file-name-to-ns (filter name-fitler file-names))]
+        namespaces (->> file-names
+                        (filter  (fn [name]
+                                   (some #(str/ends-with? name %) ns-fine-name-sufixes)))
+                        (map file-name-to-ns))
+        namespaces (filter ns-filter namespaces)]
     (set namespaces)))
 
 
